@@ -1,0 +1,321 @@
+# FAQ - Perguntas Frequentes sobre Cibersegurança
+
+## Conceitos Básicos
+
+1. O que é cibersegurança?
+   R: Cibersegurança é o conjunto de práticas para proteger sistemas, redes e dados contra ataques digitais.
+
+2. Por que a cibersegurança é importante?
+   R: Porque protege informações sensíveis e evita prejuízos financeiros e de reputação.
+
+3. Quais são os tipos comuns de ataques cibernéticos?
+   R: Phishing, malware, ransomware, ataques DDoS e engenharia social.
+
+4. Como posso proteger meus dados pessoais?
+   R: Usando senhas fortes, atualizando sistemas e evitando clicar em links suspeitos.
+
+5. O que fazer em caso de um ataque?
+   R: Isolar o sistema afetado, comunicar a equipe de segurança e seguir o plano de resposta a incidentes.
+
+6. O que é hacking ético?
+   R: É a prática autorizada de testar sistemas em busca de vulnerabilidades para corrigi-las antes que sejam exploradas por criminosos.
+
+7. Qual a diferença entre segurança da informação e cibersegurança?
+   R: Segurança da informação é mais ampla, abrangendo dados digitais e físicos, enquanto cibersegurança foca especificamente na proteção de sistemas digitais.
+
+8. O que é um firewall?
+   R: É uma barreira de segurança que monitora e controla o tráfego de rede conforme regras de segurança predefinidas.
+
+9. O que é criptografia?
+   R: É o processo de codificar informações de modo que apenas pessoas autorizadas possam acessá-las.
+
+10. O que é um antivírus?
+    R: É um software projetado para detectar, prevenir e remover malwares.
+
+## Ameaças e Ataques
+
+11. O que é phishing?
+    R: É um ataque onde criminosos enviam mensagens fraudulentas para enganar pessoas e obter informações sensíveis.
+
+12. O que é ransomware?
+    R: É um tipo de malware que criptografa os arquivos da vítima e exige pagamento para restaurar o acesso.
+
+13. O que é um ataque DDoS?
+    R: Distributed Denial of Service é um ataque que sobrecarrega um sistema com tráfego para torná-lo inacessível.
+
+14. O que é engenharia social?
+    R: É a manipulação psicológica para induzir pessoas a divulgar informações confidenciais ou realizar ações específicas.
+
+15. O que é um backdoor?
+    R: É um método secreto para contornar a autenticação normal e acessar remotamente um sistema.
+
+16. O que é man-in-the-middle?
+    R: É um ataque onde o invasor intercepta secretamente a comunicação entre duas partes.
+
+17. O que são ataques de força bruta?
+    R: São tentativas de descobrir senhas ou chaves tentando sistematicamente todas as combinações possíveis.
+
+18. O que é spyware?
+    R: É um software malicioso que coleta informações sobre a atividade de um usuário sem seu consentimento.
+
+19. O que é malware?
+    R: É qualquer software projetado para danificar ou infiltrar-se ilegalmente em um sistema.
+
+20. O que é um cavalo de Troia?
+    R: É um tipo de malware disfarçado de software legítimo.
+
+## Proteção e Prevenção
+
+21. O que é autenticação de dois fatores (2FA)?
+    R: É um método de segurança que requer dois tipos diferentes de identificação para acessar algo.
+
+22. O que é um gerenciador de senhas?
+    R: É um aplicativo que armazena e gerencia as senhas online de forma segura.
+
+23. O que é VPN?
+    R: Virtual Private Network é uma tecnologia que cria uma conexão criptografada sobre uma rede menos segura.
+
+24. O que são patches de segurança?
+    R: São atualizações de software que corrigem vulnerabilidades de segurança.
+
+25. O que é uma política de segurança?
+    R: É um conjunto de diretrizes que definem como uma organização protege seus ativos digitais.
+
+26. O que é sandbox?
+    R: É um ambiente isolado para testar código ou analisar programas maliciosos sem risco.
+
+27. O que é backup?
+    R: É a cópia de dados armazenada em um local separado para recuperação em caso de perda.
+
+28. O que é controle de acesso?
+    R: São métodos para garantir que apenas usuários autorizados acessem recursos específicos.
+
+29. O que é uma DMZ (zona desmilitarizada) em redes?
+    R: É uma rede intermediária que separa a rede interna privada da internet pública.
+
+30. O que é um IDS/IPS?
+    R: Sistema de Detecção de Intrusão (IDS) e Sistema de Prevenção de Intrusão (IPS) são tecnologias que monitoram redes e sistemas em busca de atividades maliciosas.
+
+## Conformidade e Regulação
+
+31. O que é GDPR?
+    R: General Data Protection Regulation é um regulamento da UE sobre privacidade e proteção de dados.
+
+32. O que é LGPD?
+    R: Lei Geral de Proteção de Dados é a legislação brasileira que regula o tratamento de dados pessoais.
+
+33. O que é PCI DSS?
+    R: Payment Card Industry Data Security Standard é um conjunto de requisitos de segurança para empresas que processam pagamentos com cartão.
+
+34. O que é SOC 2?
+    R: É um framework de auditoria que verifica como organizações gerenciam dados de clientes.
+
+35. O que é ISO 27001?
+    R: É um padrão internacional para gerenciamento de segurança da informação.
+
+36. O que são políticas de retenção de dados?
+    R: São diretrizes que determinam quanto tempo os dados devem ser mantidos antes de serem excluídos.
+
+37. O que é HIPAA?
+    R: Health Insurance Portability and Accountability Act é uma lei americana que protege dados médicos.
+
+38. O que é responsabilidade compartilhada na nuvem?
+    R: É um modelo onde provedores e clientes compartilham responsabilidades pela segurança.
+
+39. O que é auditoria de segurança?
+    R: É uma avaliação sistemática da segurança de um sistema ou aplicação.
+
+40. O que é uma análise de risco?
+    R: É um processo para identificar e avaliar potenciais ameaças e vulnerabilidades.
+
+## Segurança Corporativa
+
+41. O que é SIEM?
+    R: Security Information and Event Management é uma solução que fornece análise em tempo real de alertas de segurança.
+
+42. O que é um SOC?
+    R: Security Operations Center é uma instalação que monitora e analisa a postura de segurança de uma organização.
+
+43. O que é um CISO?
+    R: Chief Information Security Officer é o executivo responsável pela segurança da informação.
+
+44. O que é segurança em nuvem?
+    R: São práticas e tecnologias projetadas para proteger dados e aplicativos em ambientes de nuvem.
+
+45. O que é gestão de vulnerabilidades?
+    R: É o processo de identificar, classificar e mitigar vulnerabilidades em sistemas.
+
+46. O que é uma política de BYOD?
+    R: Bring Your Own Device são diretrizes para uso seguro de dispositivos pessoais no ambiente de trabalho.
+
+47. O que é um plano de continuidade de negócios?
+    R: É uma estratégia para manter operações em funcionamento durante e após um incidente.
+
+48. O que é segmentação de rede?
+    R: É a divisão de uma rede em segmentos menores para melhorar a segurança e o desempenho.
+
+49. O que são controles de segurança?
+    R: São salvaguardas implementadas para proteger a confidencialidade, integridade e disponibilidade dos dados.
+
+50. O que é Zero Trust?
+    R: É um modelo de segurança que não confia em nada dentro ou fora da rede.
+
+## Tecnologias Emergentes
+
+51. Como a IA afeta a cibersegurança?
+    R: A IA pode melhorar a detecção de ameaças, mas também pode ser usada para criar ataques mais sofisticados.
+
+52. O que é segurança em IoT?
+    R: São medidas para proteger dispositivos conectados à Internet das Coisas.
+
+53. O que é blockchain na segurança?
+    R: É uma tecnologia de registro distribuído que pode melhorar a segurança e integridade dos dados.
+
+54. O que é DevSecOps?
+    R: É a integração de práticas de segurança em todo o ciclo de desenvolvimento de software.
+
+55. O que é CASB?
+    R: Cloud Access Security Broker é uma ferramenta que monitora atividades e aplica políticas de segurança entre usuários e serviços em nuvem.
+
+56. O que é EDR?
+    R: Endpoint Detection and Response é uma tecnologia que monitora endpoints para detectar e responder a ameaças.
+
+57. O que é XDR?
+    R: Extended Detection and Response é uma abordagem unificada de segurança que coleta e correlaciona dados de várias camadas de segurança.
+
+58. O que é SOAR?
+    R: Security Orchestration, Automation and Response são soluções que permitem automatizar respostas a incidentes.
+
+59. O que é computação quântica em cibersegurança?
+    R: É uma tecnologia emergente que pode quebrar certos tipos de criptografia, exigindo novos padrões criptográficos.
+
+60. O que é criptografia pós-quântica?
+    R: São algoritmos criptográficos projetados para resistir a ataques de computadores quânticos.
+
+## Segurança Pessoal e Individual
+
+61. Como criar uma senha forte?
+    R: Combine letras maiúsculas e minúsculas, números e símbolos, evite informações pessoais e use frases-senha longas.
+
+62. O que é higiene digital?
+    R: São práticas regulares para manter a segurança e o desempenho dos dispositivos e dados pessoais.
+
+63. Como reconhecer um email de phishing?
+    R: Verifique o remetente, desconfie de urgência, erros gramaticais, links suspeitos e solicitações de informações pessoais.
+
+64. O que é privacidade digital?
+    R: É o direito de controlar quais informações pessoais são coletadas e como são usadas online.
+
+65. Como proteger smartphones contra ameaças?
+    R: Mantenha o sistema atualizado, use bloqueio de tela, instale apps apenas de fontes confiáveis e utilize antivírus.
+
+66. O que é navegação anônima?
+    R: É um modo de navegação que não salva histórico, cookies ou dados de formulários, mas não torna você totalmente anônimo.
+
+67. O que é um navegador seguro?
+    R: É um navegador com recursos aprimorados de privacidade e segurança para proteger os usuários online.
+
+68. Como proteger redes Wi-Fi domésticas?
+    R: Use senha forte, altere o nome padrão da rede, ative criptografia WPA3 e mantenha o firmware atualizado.
+
+69. O que são cookies e quais são suas implicações para privacidade?
+    R: São pequenos arquivos armazenados pelo navegador que podem rastrear sua atividade online.
+
+70. Como fazer compras online com segurança?
+    R: Use sites confiáveis, verifique se a URL começa com "https", não salve dados de cartão e use cartões virtuais quando possível.
+
+## Educação e Treinamento
+
+71. O que é conscientização sobre segurança?
+    R: São programas que educam usuários sobre ameaças e práticas de segurança.
+
+72. Como simular ataques de phishing para treinamento?
+    R: Enviando emails falsos controlados para funcionários e medindo as respostas para identificar necessidades de treinamento.
+
+73. Quais certificações de cibersegurança são recomendadas?
+    R: CompTIA Security+, CISSP, CEH, CISM e OSCP são algumas das mais reconhecidas.
+
+74. Como implementar uma cultura de segurança?
+    R: Promovendo treinamentos regulares, envolvendo a liderança e recompensando comportamentos seguros.
+
+75. O que são exercícios de mesa para segurança?
+    R: São simulações de cenários de incidentes para testar a preparação da equipe.
+
+76. Como realizar um teste de penetração?
+    R: Contratando especialistas para tentar comprometer sistemas de forma ética e identificar vulnerabilidades.
+
+77. O que é segurança por design?
+    R: É a abordagem de incorporar recursos de segurança desde o início do desenvolvimento de um sistema.
+
+78. Como avaliar a eficácia de treinamentos de segurança?
+    R: Monitorando métricas como taxa de cliques em simulações de phishing e número de incidentes reportados.
+
+79. O que é gamificação em treinamentos de segurança?
+    R: É o uso de elementos de jogos para tornar o aprendizado sobre segurança mais envolvente.
+
+80. Como desenvolver um programa de conscientização contínua?
+    R: Criando conteúdos variados, regulares e relevantes distribuídos em múltiplos canais.
+
+## Resposta a Incidentes
+
+81. O que é um plano de resposta a incidentes?
+    R: É um conjunto de procedimentos para detectar, responder e recuperar-se de incidentes de segurança.
+
+82. Quais são as fases de resposta a incidentes?
+    R: Preparação, identificação, contenção, erradicação, recuperação e lições aprendidas.
+
+83. O que é forense digital?
+    R: É a aplicação de técnicas de investigação para coletar e analisar evidências digitais.
+
+84. Como determinar o escopo de uma violação?
+    R: Analisando logs, monitorando atividades anormais e realizando varreduras de sistemas.
+
+85. O que é uma equipe de resposta a incidentes (CSIRT)?
+    R: É um grupo dedicado a lidar com incidentes de segurança.
+
+86. Quando notificar as autoridades sobre um incidente?
+    R: Quando houver obrigação legal, roubo de dados sensíveis ou comprometimento de infraestrutura crítica.
+
+87. Como documentar um incidente de segurança?
+    R: Registrando detalhadamente o que aconteceu, quando, como foi detectado e as ações tomadas.
+
+88. O que é triagem de incidentes?
+    R: É o processo de avaliar e priorizar incidentes com base em seu impacto e urgência.
+
+89. Como realizar uma análise de causa raiz?
+    R: Investigando sistematicamente para identificar a origem fundamental do incidente.
+
+90. O que é recuperação de desastres em cibersegurança?
+    R: São estratégias para restaurar sistemas e dados após um incidente grave.
+
+## Tendências e Evolução
+
+91. Como a 5G impacta a cibersegurança?
+    R: Amplia a superfície de ataque, mas também possibilita novas soluções de segurança.
+
+92. Qual o papel do fator humano na cibersegurança?
+    R: É frequentemente o elo mais fraco, mas também pode ser a primeira linha de defesa quando bem treinado.
+
+93. Como a legislação de privacidade afeta a segurança?
+    R: Força organizações a adotarem práticas mais robustas de proteção de dados.
+
+94. O que são ameaças persistentes avançadas (APTs)?
+    R: São ataques sofisticados e dirigidos que persistem por longos períodos para obter informações.
+
+95. Como o trabalho remoto mudou a cibersegurança?
+    R: Expandiu o perímetro de segurança e criou novos desafios com dispositivos e redes pessoais.
+
+96. O que é defesa em profundidade?
+    R: É uma estratégia que emprega múltiplas camadas de segurança para proteger ativos.
+
+97. Como a cibersegurança se aplica a infraestruturas críticas?
+    R: Protege sistemas essenciais como energia, água e saúde contra ataques que podem causar danos físicos.
+
+98. O que é guerra cibernética?
+    R: São ações ofensivas e defensivas conduzidas por estados-nação no ciberespaço.
+
+99. Como o conceito de identidade está evoluindo na cibersegurança?
+    R: Está se movendo de autenticação baseada em senha para métodos biométricos e comportamentais.
+
+100. Qual o futuro da cibersegurança?
+     R: Maior integração com IA, foco em segurança para computação quântica e adaptação a ambientes sem perímetro tradicional.
