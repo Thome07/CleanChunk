@@ -1,37 +1,72 @@
-## 📘 CleanChunk Transforma arquivos .txt, .pdf e .docx em chunks semânticos limpos e organizados. Ideal para pipelines de NLP, embeddings e análise textual.
- ### OBS: Para arquivos muito grande pode demorar um pouco para carregar
-🚀 Funcionalidades
-Interface simples com Tkinter.
+## 🧠 CleanChunk – Chunk Semântico Inteligente em JSON
+Transforme documentos extensos (PDF, DOCX, TXT) em chunks semânticos limpos e estruturados em JSON, prontos para NLP, RAG, chatbots ou análise de conteúdo.
 
-Aceita arquivos .txt, .pdf e .docx.
+### ⚙️ Funcionalidades
+Suporte a arquivos: PDF, DOCX, TXT
 
-Realiza:
+3 modos de chunking:
 
-Remoção de ruído (números soltos, palavras quebradas, etc).
+📖 Texto Livre: Chunks coesos validados semanticamente
 
-Correção de caracteres com ftfy e unidecode.
+❓ FAQ: Perguntas e respostas detectadas automaticamente
 
-Divisão em chunks semânticos com SentenceTransformer.
+🎤 Entrevista: Pares pergunta–resposta extraídos por turnos de fala
 
-Exporta os chunks como JSON com chunk_id e conteudo.
+Saída JSON estruturada: Inclui metadados como página, coesão e similaridade
 
-📂 Estrutura do JSON gerado
-[ { "pagina": 5, "chunk_id": 102, "conteudo": "Texto processado aqui." } ] pagina será null em arquivos .txt ou .docx.
+NLP Inteligente:
 
-🛠️ Instalação
+Sentence Transformers
+
+Threshold ajustável de similaridade (slider)
+
+Validação gramatical, semântica e remoção de ruído
+
+### 🚀 Como Usar
+Instale as dependências:
+```
 pip install -r requirements.txt
+``` 
+Rode a interface:
 
-▶️ Uso
-Execute o script Python principal.
+```
+python Main.py
+```
+No app:
 
-Clique em Selecionar arquivo e escolha seu .txt, .pdf ou .docx.
+Selecione o arquivo (PDF, DOCX ou TXT)
 
-Aguarde o processamento.
+Escolha o tipo de conteúdo (Texto, FAQ, Entrevista)
 
-O JSON final será salvo no mesmo diretório do arquivo original.
+Ajuste o nível de similaridade (0.5–0.9)
 
-⚠️ Observações
+Clique em Processar Arquivo
 
-SentenceTransformer é usado com verificação de confiança.
+Salve o resultado em JSON
 
-O código é tolerante a falhas (try/except nos pontos críticos).
+### 📤 Exemplo de Saída (JSON)
+```json
+{
+  "chunk_id": 1,
+  "conteudo": "Texto processado...",
+  "pagina": 3,
+  "similaridade_media": 0.82,
+  "coesao_interna": 0.79
+}
+```
+### 🧪 Tecnologias
+NLP: sentence-transformers, transformers (opcional)
+
+PDFs: pdfplumber
+
+Interface: tkinter (com tema escuro)
+
+Limpeza de texto: unidecode, ftfy
+
+### 💡 Dicas
+Use o modo "Contém Cabeçalhos" para melhores resultados em documentos estruturados
+
+Recomendado manter os modelos NLP atualizados
+
+Arquivos grandes (>100 páginas) podem exigir mais RAM
+
