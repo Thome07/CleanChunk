@@ -13,81 +13,107 @@ import logging
 from typing import List, Dict, Any, Optional
 
 try:
-    from transformers import pipeline
-    gramatica_checker = pipeline("text-classification", model="textattack/bert-base-uncased-CoLA")
+    from transformers import pipeline, AutoTokenizer, AutoModel
+    import torch
+    from sklearn.cluster import KMeans
+    from sklearn.metrics.pairwise import cosine_similarity
+    import umap
+    semantic_analyzer = pipeline("text-classification", model="microsoft/DialoGPT-medium")
+    coherence_checker = pipeline("text-classification", model="textattack/bert-base-uncased-CoLA")
+    ADVANCED_NLP = True
 except ImportError:
-    gramatica_checker = None
-    print("AVISO: Biblioteca 'transformers' não instalada. A validação de sentido estará desativada.")
+    ADVANCED_NLP = False
+    print("AVISO: Bibliotecas avançadas não instaladas. Usando fallback.")
 
 class DocumentProcessor:
     def __init__(self):
-        # Modelo maior para melhor qualidade (tradeoff performance/qualidade)
-        self.model = SentenceTransformer('paraphrase-multilingual-mpnet-base-v2')
-        self.threshold = 0.82  # Aumentei a sensibilidade
-        self.min_chunk_size = 80  # Tamanho mínimo aumentado
-        self.max_chunk_size = 600  # Tamanho máximo ajustado
+        # Modelo mais leve e rápido, mas ainda eficiente
+        self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        self.model.max_seq_length = 256  # Limita tamanho das sequências
         
-        # Novos padrões regex para melhor detecção
+        # Parâmetros otimizados
+        self.threshold = 0.78  
+        self.min_chunk_size = 100
+        self.max_chunk_size = 800
+        self.batch_size = 64  # Processa mais sentenças por vez
+        
+        # Regex compilados para melhor performance
         self.header_re = re.compile(
             r'^(?:Capítulo|Seção|Parte)\s+\d+[\.:]?\s*.*|^#{2,}\s+.*|^[A-Z][\w\s]{15,}$',
             re.IGNORECASE | re.MULTILINE
         )
         self.page_re = re.compile(r'\[Página (\d+)\]')
-
-       # Regex para FAQ
         self.faq_q_re = re.compile(r'^\s*\d+\.\s*(.*)')
         self.faq_a_re = re.compile(r'^\s*[Rr]:?\s*(.*)')
-        
-        # Regex para Entrevista
         self.header_interview_re = re.compile(r'^\d+\.\s+\w+')
         self.speaker_re = re.compile(r'^([^:]{1,50}):\s*(.*)')
+        
+        # Cache para validações
+        self._validation_cache = {}
+        self._embedding_cache = {}
+        
+        # Modelo maior para melhor qualidade semântica
+        self.model_semantica = SentenceTransformer('all-MiniLM-L12-v2')  # Modelo mais preciso
+        self.threshold_semantica = 0.85  # Threshold mais alto para maior precisão
+        
+        # Parâmetros otimizados para semântica perfeita
+        self.min_words = 15  # Mínimo em palavras, não caracteres
+        self.max_words = 80  # Máximo em palavras (60-120 como sugerido)
+        self.ideal_words = 50  # Tamanho ideal
+        self.min_sentences = 2  # Mínimo de frases por chunk
+        self.max_sentences = 6  # Máximo de frases por chunk
+        
+        # Regex melhorados
+        self.sentence_splitter = re.compile(r'(?<=[.!?])\s+(?=[A-Z])')
+        self.paragraph_splitter = re.compile(r'\n\s*\n')
+        
+        # Padrões para detectar ideias completas
+        self.idea_starters = re.compile(r'\b(?:Portanto|Assim|Dessa forma|Por isso|Consequentemente|Em suma|Além disso|Também|Primeiro|Segundo|Finalmente)\b', re.IGNORECASE)
+        self.idea_enders = re.compile(r'\b(?:concluindo|resumindo|em conclusão|por fim|finalmente)\b', re.IGNORECASE)
 
     def tem_sentido(self, texto: str) -> bool:
         """Verifica se o texto tem sentido usando modelo de gramática"""
-        if not gramatica_checker or len(texto) < 3:
+        if not coherence_checker or len(texto) < 3:
             return len(texto) >= 10  # Fallback mais permissivo
         try:
-            resultado = gramatica_checker(texto[:512])
+            resultado = coherence_checker(texto[:512])
             return resultado[0]['label'] == 'LABEL_1' and resultado[0]['score'] > 0.6  # Threshold mais baixo
         except Exception:
             return len(texto) >= 10
 
     def limpar_texto(self, texto: str) -> str:
-        """Limpeza robusta de texto"""
+        """Limpeza otimizada de texto"""
         if not texto:
             return ""
+        
+        # Cache para textos já limpos
+        if texto in self._validation_cache:
+            return self._validation_cache[texto]
         
         # Fix encoding issues
         texto = ftfy.fix_text(texto)
         texto = unidecode(texto)
         
-        # Remove escapes e caracteres problemáticos
-        texto = re.sub(r'\\+["\']', '"', texto)  # Substitui \" por "
-        texto = re.sub(r'-\s*\n', '', texto)
-        texto = re.sub(r'\r\n|\r|\n', ' ', texto)
-        texto = re.sub(r'\s+', ' ', texto)
-        texto = re.sub(r'\s+([,\.!?;:])', r'\1', texto)
-        texto = re.sub(r'\\(["\'\\])', r'\1', texto)  # Remove escapes desnecessários
-        texto = texto.replace('\\n', ' ')  # Substitui quebras de linha escapadas
+        # Limpeza em uma passada usando regex
+        replacements = [
+            (r'\\+["\']', '"'),
+            (r'-\s*\n', ''),
+            (r'\r\n|\r|\n', ' '),
+            (r'\s+', ' '),
+            (r'\s+([,\.!?;:])', r'\1'),
+            (r'\\(["\'\\])', r'\1'),
+            (r'\\n', ' '),
+            (r'\u201c|\u201d|&quot;', '"'),
+            (r'\u2018|\u2019|&#39;', "'"),
+        ]
         
-        # Tratamento completo de escapes
-        replacements = {
-        '\\"': '"',
-        "\\'": "'",
-        '\\\\': '\\',
-        '\u201c': '"',  # Aspas curvas esquerdas
-        '\u201d': '"',  # Aspas curvas direitas
-        '\u2018': "'",  # Aspas simples esquerda
-        '\u2019': "'"   # Aspas simples direita
-        }
-    
-        for esc, normal in replacements.items():
-            texto = texto.replace(esc, normal)
-        # Escape de aspas duplas e simples
-        texto = texto.replace('\\', '\\\\')  # Primeiro escapa as barras
-        texto = texto.replace('"', '\\"')
-        texto = texto.replace("'", "\\'")
-        return texto.strip()
+        for pattern, replacement in replacements:
+            texto = re.sub(pattern, replacement, texto)
+        
+        # Cache do resultado
+        result = texto.strip()
+        self._validation_cache[texto] = result
+        return result
 
     def preprocess_text(self, text: str) -> str:
         """Preprocessamento específico para limpeza de ruído"""
@@ -176,7 +202,7 @@ class DocumentProcessor:
         chunk_text = ' '.join(chunk_sentences).strip()
         
         # Critérios básicos de tamanho
-        if len(chunk_text) < self.min_chunk_size:
+        if len(chunk_text) < self.min_words:
             return False
         
         # Verifica se tem palavras suficientes (não só pontuação/números)
@@ -265,94 +291,123 @@ class DocumentProcessor:
         return text
 
     def chunk_semantic_pairwise(self, sentences: List[str], pagina: Optional[int] = None) -> List[Dict]:
-        """Chunking semântico melhorado com validação rigorosa"""
+        """Chunking semântico otimizado com melhor qualidade"""
         if not sentences:
             return []
-
-        # Pré-filtragem: remove sentenças claramente inválidas
+    
+        # Pré-filtragem mais eficiente
         valid_sentences = []
         for sentence in sentences:
             cleaned = self.limpar_texto(sentence)
-            if (len(cleaned) >= 20 and 
-                self._sentence_seems_complete(cleaned) and
+            if (len(cleaned) >= 30 and 
+                len(re.findall(r'\b\w+\b', cleaned)) >= 5 and
                 not re.match(r'^[\d\s\-\.]+$', cleaned)):
                 valid_sentences.append(cleaned)
         
-        if not valid_sentences:
+        if len(valid_sentences) < 2:
             return []
-
+    
         try:
+            # Embedding em batch para melhor performance
             embeddings = self.model.encode(
                 valid_sentences,
-                batch_size=32,
+                batch_size=self.batch_size,
                 show_progress_bar=False,
-                normalize_embeddings=True
+                normalize_embeddings=True,
+                convert_to_tensor=False  # Numpy é mais rápido para cálculos
             )
             
             chunks = []
             current_chunk = [valid_sentences[0]]
             current_embeddings = [embeddings[0]]
             
+            # Sliding window para contexto semântico
+            window_size = min(5, len(valid_sentences) // 10 + 1)
+            
             for i in range(1, len(valid_sentences)):
                 current_sentence = valid_sentences[i]
                 current_embedding = embeddings[i]
                 
-                # Cálculos de similaridade (mantidos iguais)
+                # Cálculos de similaridade otimizados
                 similarities = []
-                last_sim = np.dot(current_embedding, embeddings[i-1])
-                similarities.append(last_sim)
                 
+                # Similaridade com a sentença anterior
+                prev_sim = np.dot(current_embedding, embeddings[i-1])
+                similarities.append(prev_sim)
+                
+                # Similaridade com o centroide do chunk atual
                 if len(current_embeddings) > 0:
                     chunk_centroid = np.mean(current_embeddings, axis=0)
                     centroid_sim = np.dot(current_embedding, chunk_centroid)
-                    similarities.append(centroid_sim)
+                    similarities.append(centroid_sim * 1.1)  # Peso maior para coesão
                 
-                if len(current_embeddings) >= 3:
-                    recent_centroid = np.mean(current_embeddings[-3:], axis=0)
-                    recent_sim = np.dot(current_embedding, recent_centroid)
-                    similarities.append(recent_sim)
+                # Similaridade com janela deslizante (contexto local)
+                if len(current_embeddings) >= window_size:
+                    window_centroid = np.mean(current_embeddings[-window_size:], axis=0)
+                    window_sim = np.dot(current_embedding, window_centroid)
+                    similarities.append(window_sim)
                 
-                # Média ponderada
+                # Média ponderada inteligente
                 if len(similarities) == 1:
                     avg_similarity = similarities[0]
                 elif len(similarities) == 2:
-                    avg_similarity = 0.6 * similarities[0] + 0.4 * similarities[1]
+                    avg_similarity = 0.5 * similarities[0] + 0.5 * similarities[1]
                 else:
-                    avg_similarity = 0.4 * similarities[0] + 0.4 * similarities[1] + 0.2 * similarities[2]
+                    avg_similarity = 0.3 * similarities[0] + 0.5 * similarities[1] + 0.2 * similarities[2]
                 
-                # Threshold dinâmico
+                # Threshold dinâmico melhorado
                 base_threshold = self.threshold
-                chunk_size_factor = min(len(current_chunk) / 8, 0.1)
-                dynamic_threshold = base_threshold - chunk_size_factor
                 
-                # Detecções de quebra
+                # Ajuste baseado no tamanho do chunk
+                size_factor = min(len(current_chunk) / 12, 0.08)
+                
+                # Ajuste baseado na variância das similaridades no chunk
+                if len(current_embeddings) >= 3:
+                    recent_sims = [np.dot(emb, current_embeddings[-1]) for emb in current_embeddings[-3:-1]]
+                    variance_factor = np.std(recent_sims) * 0.1
+                else:
+                    variance_factor = 0
+                
+                dynamic_threshold = base_threshold - size_factor + variance_factor
+                
+                # Detecções de quebra melhoradas
                 is_header = self.header_re.match(current_sentence.strip())
-                is_too_long = len(' '.join(current_chunk)) + len(current_sentence) > self.max_chunk_size
+                chunk_size = len(' '.join(current_chunk))
+                is_too_long = chunk_size + len(current_sentence) > self.max_chunk_size
                 
-                theme_change = False
-                if len(current_embeddings) >= 2:
-                    prev_similarities = [np.dot(emb, embeddings[i-1]) for emb in current_embeddings[-2:]]
-                    avg_prev_sim = np.mean(prev_similarities)
-                    similarity_drop = avg_prev_sim - avg_similarity
-                    theme_change = similarity_drop > 0.2
+                # Detecção de mudança de tópico mais sensível
+                topic_change = False
+                if len(current_embeddings) >= 3:
+                    # Compara com média das últimas 3 sentenças
+                    recent_centroid = np.mean(current_embeddings[-3:], axis=0)
+                    recent_sim = np.dot(current_embedding, recent_centroid)
+                    
+                    # Se a similaridade cair muito em relação ao padrão recente
+                    if len(current_embeddings) >= 5:
+                        historical_sims = [np.dot(emb, current_embeddings[max(0, j-2):j+1]) 
+                                         for j, emb in enumerate(current_embeddings[-5:], len(current_embeddings)-5)]
+                        avg_historical = np.mean([np.mean(sim_group) for sim_group in historical_sims if len(sim_group) > 0])
+                        topic_change = recent_sim < avg_historical - 0.15
                 
                 should_break = (
                     avg_similarity < dynamic_threshold or
                     is_too_long or
                     is_header or
-                    theme_change
+                    topic_change
                 )
                 
-                if should_break:
-                    # Valida chunk antes de adicionar
-                    if self._is_chunk_valid(current_chunk):
-                        chunk_text = self._clean_chunk_text(' '.join(current_chunk))
-                        if chunk_text:  # Só adiciona se limpeza foi bem-sucedida
+                if should_break and len(current_chunk) > 0:
+                    # Validação mais rigorosa do chunk
+                    if self._is_chunk_valid_optimized(current_chunk):
+                        chunk_text = self._clean_chunk_text_optimized(' '.join(current_chunk))
+                        if chunk_text:
                             chunks.append({
                                 'pagina': pagina,
                                 'conteudo': chunk_text,
                                 'similaridade_media': float(np.mean([np.dot(emb, current_embeddings[0]) 
-                                                                   for emb in current_embeddings]))
+                                                                   for emb in current_embeddings])),
+                                'coesao_interna': float(np.mean([np.dot(current_embeddings[j], current_embeddings[j+1]) 
+                                                               for j in range(len(current_embeddings)-1)])) if len(current_embeddings) > 1 else 1.0
                             })
                     
                     current_chunk = [current_sentence]
@@ -361,25 +416,90 @@ class DocumentProcessor:
                     current_chunk.append(current_sentence)
                     current_embeddings.append(current_embedding)
             
-            # Último chunk
-            if current_chunk and self._is_chunk_valid(current_chunk):
-                chunk_text = self._clean_chunk_text(' '.join(current_chunk))
+            # Processa último chunk
+            if current_chunk and self._is_chunk_valid_optimized(current_chunk):
+                chunk_text = self._clean_chunk_text_optimized(' '.join(current_chunk))
                 if chunk_text:
                     chunks.append({
                         'pagina': pagina,
                         'conteudo': chunk_text,
                         'similaridade_media': float(np.mean([np.dot(emb, current_embeddings[0]) 
-                                                           for emb in current_embeddings]))
+                                                           for emb in current_embeddings])),
+                        'coesao_interna': float(np.mean([np.dot(current_embeddings[j], current_embeddings[j+1]) 
+                                                       for j in range(len(current_embeddings)-1)])) if len(current_embeddings) > 1 else 1.0
                     })
             
-            return self._post_process_semantic_chunks(chunks)
+            return self._post_process_semantic_chunks_optimized(chunks)
             
         except Exception as e:
             print(f"Erro no chunking semântico: {e}")
             return self._fallback_chunking(valid_sentences, pagina)
 
-    def _post_process_semantic_chunks(self, chunks: List[Dict]) -> List[Dict]:
-        """Pós-processamento para otimizar chunks semânticos"""
+    def _is_chunk_valid_optimized(self, chunk_sentences: List[str]) -> bool:
+        """Validação otimizada de chunk"""
+        if not chunk_sentences:
+            return False
+            
+        chunk_text = ' '.join(chunk_sentences).strip()
+        
+        # Cache de validação
+        if chunk_text in self._validation_cache:
+            return self._validation_cache[chunk_text]
+        
+        # Critérios básicos
+        if len(chunk_text) < self.min_chunk_size:
+            self._validation_cache[chunk_text] = False
+            return False
+        
+        # Contagem de palavras significativas
+        words = re.findall(r'\b\w{3,}\b', chunk_text)  # Só palavras com 3+ chars
+        if len(words) < 8:
+            self._validation_cache[chunk_text] = False
+            return False
+        
+        # Diversidade lexical (evita chunks repetitivos)
+        unique_words = set(word.lower() for word in words)
+        lexical_diversity = len(unique_words) / len(words)
+        if lexical_diversity < 0.3:
+            self._validation_cache[chunk_text] = False
+            return False
+        
+        # Densidade de conteúdo (proporção de texto significativo)
+        content_chars = len(re.sub(r'[^\w\s]', '', chunk_text))
+        if content_chars < len(chunk_text) * 0.6:
+            self._validation_cache[chunk_text] = False
+            return False
+        
+        self._validation_cache[chunk_text] = True
+        return True
+
+    def _clean_chunk_text_optimized(self, text: str) -> str:
+        """Limpeza otimizada do texto do chunk"""
+        if not text:
+            return ""
+        
+        # Aplicar limpezas em sequência otimizada
+        cleaning_patterns = [
+            (r'\s+', ' '),  # Espaços múltiplos
+            (r'\s+([,.!?;:])', r'\1'),  # Espaço antes de pontuação
+            (r'([.!?])\s*\1+', r'\1'),  # Pontuação duplicada
+            (r'^[,;:\-]\s*', ''),  # Remove pontuação inicial órfã
+            (r'\s*[,;]\s*$', '.'),  # Vírgula final vira ponto
+        ]
+        
+        for pattern, replacement in cleaning_patterns:
+            text = re.sub(pattern, replacement, text)
+        
+        text = text.strip()
+        
+        # Validação final rápida
+        if len(text) < 40 or len(re.findall(r'\b\w{3,}\b', text)) < 6:
+            return ""
+        
+        return text
+
+    def _post_process_semantic_chunks_optimized(self, chunks: List[Dict]) -> List[Dict]:
+        """Pós-processamento otimizado dos chunks"""
         if not chunks:
             return []
         
@@ -389,70 +509,92 @@ class DocumentProcessor:
         while i < len(chunks):
             current = chunks[i]
             
-            # Se o chunk é muito pequeno, tenta merge com o próximo
-            if (len(current['conteudo']) < self.min_chunk_size * 1.5 and 
-                i + 1 < len(chunks) and
-                chunks[i + 1]['pagina'] == current['pagina']):
+            # Merge inteligente de chunks pequenos baseado em coesão
+            if (len(current['conteudo']) < self.min_chunk_size * 1.8 and 
+                i + 1 < len(chunks)):
                 
                 next_chunk = chunks[i + 1]
-                merged_content = current['conteudo'] + ' ' + next_chunk['conteudo']
                 
-                # Só faz merge se o resultado não ficar muito grande
-                if len(merged_content) <= self.max_chunk_size:
-                    processed.append({
-                        'pagina': current['pagina'],
-                        'conteudo': merged_content,
-                        'similaridade_media': (current.get('similaridade_media', 0.8) + 
-                                             next_chunk.get('similaridade_media', 0.8)) / 2
-                    })
-                    i += 2  # Pula os dois chunks que foram unidos
-                    continue
+                # Só faz merge se os chunks são da mesma página e semanticamente próximos
+                if (next_chunk['pagina'] == current['pagina'] and
+                    current.get('similaridade_media', 0) > 0.7 and
+                    next_chunk.get('similaridade_media', 0) > 0.7):
+                    
+                    merged_content = current['conteudo'] + ' ' + next_chunk['conteudo']
+                    
+                    if len(merged_content) <= self.max_chunk_size:
+                        processed.append({
+                            'pagina': current['pagina'],
+                            'conteudo': merged_content,
+                            'similaridade_media': (current.get('similaridade_media', 0.8) + 
+                                                 next_chunk.get('similaridade_media', 0.8)) / 2,
+                            'coesao_interna': max(current.get('coesao_interna', 0.8),
+                                                next_chunk.get('coesao_interna', 0.8))
+                        })
+                        i += 2
+                        continue
             
             processed.append(current)
             i += 1
         
         return processed
 
-    def _fallback_chunking(self, sentences: List[str], pagina: Optional[int] = None) -> List[Dict]:
-        """Chunking de fallback quando há erro no semântico"""
-        chunks = []
-        current_chunk = []
-        current_size = 0
+    def _post_process_chunks_optimized(self, chunks: List[Dict]) -> List[Dict]:
+        """Pós-processamento final otimizado"""
+        final_chunks = []
+        
+        for i, chunk in enumerate(chunks, 1):
+            # Remove cabeçalhos duplicados
+            if 'cabecalho' in chunk and chunk['cabecalho'] in chunk['conteudo']:
+                chunk['conteudo'] = chunk['conteudo'].replace(chunk['cabecalho'], '').strip()
+            
+            # Normalização de caracteres especiais
+            replacements = {
+                '\u201c': '"', '\u201d': '"',
+                '&quot;': '"', '&#39;': "'"
+            }
+            for old, new in replacements.items():
+                chunk['conteudo'] = chunk['conteudo'].replace(old, new)
+            
+            # Validação final
+            if (len(chunk['conteudo']) >= self.min_chunk_size and
+                len(re.findall(r'\b\w{3,}\b', chunk['conteudo'])) >= 8):
+                
+                chunk['chunk_id'] = i
+                chunk['comprimento'] = len(chunk['conteudo'])
+                chunk['qualidade_semantica'] = chunk.get('coesao_interna', 0.8)
+                final_chunks.append(chunk)
+        
+        return final_chunks
+
+    def _fallback_chunking(self, sentences: List[str], pagina: Optional[int]) -> List[Dict]:
+        """Agrupamento de fallback por proximidade textual"""
+        groups = []
+        current_group = []
         
         for sentence in sentences:
-            sentence_size = len(sentence)
+            current_group.append(sentence)
             
-            if current_size + sentence_size > self.max_chunk_size and current_chunk:
-                chunk_text = ' '.join(current_chunk)
-                if len(chunk_text) >= self.min_chunk_size:
-                    chunks.append({
-                        'pagina': pagina,
-                        'conteudo': self._clean_chunk_text(chunk_text)
-                    })
-                current_chunk = [sentence]
-                current_size = sentence_size
-            else:
-                current_chunk.append(sentence)
-                current_size += sentence_size
+            # Agrupa a cada 3-5 sentenças
+            if len(current_group) >= 4:
+                groups.append(current_group)
+                current_group = []
         
-        # Último chunk
-        if current_chunk:
-            chunk_text = ' '.join(current_chunk)
-            if len(chunk_text) >= self.min_chunk_size:
-                chunks.append({
-                    'pagina': pagina,
-                    'conteudo': self._clean_chunk_text(chunk_text)
-                })
+        if current_group:
+            groups.append(current_group)
         
-        return chunks
+        return self._post_process_semantic_chunks_optimized(groups)
 
     def chunk_structured(self, path: str) -> List[Dict]:
-        """Versão melhorada com extração de metadados e processamento em batches de sentenças"""
+        """Versão otimizada com processamento em streaming"""
         lines = self.load_lines(path)
         all_chunks = []
         current_page = 1
         header = None
-        sentences_batch = []
+        sentences_buffer = []
+        
+        # Processa em batches maiores para melhor eficiência
+        batch_size = 150
         
         for line in lines:
             # Atualiza página atual
@@ -466,55 +608,35 @@ class DocumentProcessor:
                 header = line.strip()
                 continue
                 
-            # Processa conteúdo
+            # Processa conteúdo válido
             if self.is_valid_content(line):
                 cleaned = self.limpar_texto(line)
                 sentences = self.split_sentences(cleaned)
-                sentences_batch.extend(sentences)  # Acumula sentenças
+                sentences_buffer.extend(sentences)
                 
-                # Processa em batches de 100 sentenças
-                if len(sentences_batch) >= 100:
-                    chunks = self.chunk_semantic_pairwise(sentences_batch, current_page)
+                # Processa quando buffer atinge o tamanho ideal
+                if len(sentences_buffer) >= batch_size:
+                    chunks = self.chunk_semantic_pairwise(sentences_buffer, current_page)
                     for chunk in chunks:
                         if header:
                             chunk['cabecalho'] = header
                         all_chunks.append(chunk)
-                    sentences_batch = []
-                    header = None  # Reset header após uso
+                    sentences_buffer = []
+                    header = None
         
-        # Processa restante
-        if sentences_batch:
-            chunks = self.chunk_semantic_pairwise(sentences_batch, current_page)
+        # Processa restante do buffer
+        if sentences_buffer:
+            chunks = self.chunk_semantic_pairwise(sentences_buffer, current_page)
             for chunk in chunks:
                 if header:
                     chunk['cabecalho'] = header
                 all_chunks.append(chunk)
         
-        # Pós-processamento final
-        return self._post_process_chunks(all_chunks)
-
-    def _post_process_chunks(self, chunks: List[Dict]) -> List[Dict]:
-        """Etapas finais de validação e formatação"""
-        final_chunks = []
-        for i, chunk in enumerate(chunks, 1):
-            # Remove cabeçalhos duplicados
-            if 'cabecalho' in chunk:
-                chunk['conteudo'] = chunk['conteudo'].replace(chunk['cabecalho'], '').strip()
-            
-            # Substitui aspas curvas e entidades HTML por aspas normais
-            chunk['conteudo'] = chunk['conteudo'].replace('\u201c', '"').replace('\u201d', '"')
-            chunk['conteudo'] = chunk['conteudo'].replace('&quot;', '"').replace('&#39;', "'")
-            
-            # Validação final rigorosa
-            if self.is_valid_content(chunk['conteudo']):
-                chunk['chunk_id'] = i
-                chunk['comprimento'] = len(chunk['conteudo'])
-                final_chunks.append(chunk)
-        return final_chunks
+        return self._post_process_chunks_optimized(all_chunks)
 
     def is_valid_content(self, content: str) -> bool:
         """Validação mais rigorosa com múltiplos critérios"""
-        if not content or len(content) < self.min_chunk_size:
+        if not content or len(content) < self.min_words:
             return False
             
         # Verifica padrões inválidos
@@ -613,6 +735,11 @@ class DocumentProcessor:
             chunk_id += 1
         
         return chunks
+
+    def clear_cache(self):
+        """Limpa caches para liberar memória"""
+        self._validation_cache.clear()
+        self._embedding_cache.clear()
 
 
 class Application:
