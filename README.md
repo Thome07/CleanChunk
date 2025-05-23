@@ -31,7 +31,6 @@ Aguarde o processamento.
 O JSON final será salvo no mesmo diretório do arquivo original.
 
 ⚠️ Observações
-A chunkificação usa IA apenas em trechos curtos com baixa legibilidade.
 
 SentenceTransformer é usado com verificação de confiança.
 
