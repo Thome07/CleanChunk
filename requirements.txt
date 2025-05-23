@@ -6,3 +6,6 @@ python-docx
 unidecode
 ftfy
 transformers
+torch
+scikit-learn
+umap-learn
