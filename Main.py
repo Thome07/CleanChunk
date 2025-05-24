@@ -11,6 +11,8 @@ from unidecode import unidecode
 import ftfy
 import logging
 from typing import List, Dict, Any, Optional
+import threading
+from queue import Queue
 
 try:
     from transformers import pipeline, AutoTokenizer, AutoModel
@@ -741,6 +743,10 @@ class DocumentProcessor:
         self._validation_cache.clear()
         self._embedding_cache.clear()
 
+    def chunk_semantic_v3_enhanced(self, path: str, progress_queue: Queue = None) -> List[Dict]:
+        """Wrapper para compatibilidade com o sistema de progresso"""
+        return self.chunk_structured(path)
+
 
 class Application:
     def __init__(self, master):
@@ -841,8 +847,8 @@ class Application:
         self.update_example_label()
 
         # Botão de processar
-        process_btn = ttk.Button(main_frame, text="⚡ Processar Arquivo", command=self.process_file)
-        process_btn.pack(pady=(0, 10), ipadx=10)
+        self.process_btn = ttk.Button(main_frame, text="⚡ Processar Arquivo", command=self.process_file)
+        self.process_btn.pack(pady=(0, 10), ipadx=10)
 
         # Frame de visualização
         view_frame = Frame(self.master, bg=shadow)
@@ -874,6 +880,11 @@ class Application:
         scroll_y = ttk.Scrollbar(text_frame, command=self.json_text.yview)
         scroll_y.pack(side=RIGHT, fill=Y)
         self.json_text.configure(yscrollcommand=scroll_y.set)
+
+        # --- Barra de progresso ---
+        self.progress_bar = ttk.Progressbar(main_frame, orient='horizontal', length=300, mode='determinate')
+        self.progress_bar.pack(pady=(5, 10), fill=X, padx=50)
+        self.progress_bar.pack_forget()  # Esconde inicialmente
 
     def update_threshold_label(self, value):
         """Atualiza label do threshold"""
@@ -916,66 +927,75 @@ class Application:
             self.status_var.set(f"Arquivo selecionado: {os.path.basename(filepath)}")
 
     def process_file(self):
-        """Processa o arquivo selecionado"""
+        """Inicia o processamento em thread separada"""
         path = self.file_entry.get().strip()
-        
-        if not path:
-            messagebox.showerror("Erro", "Selecione um arquivo primeiro!")
+        if not path or not os.path.isfile(path):
+            messagebox.showerror("Erro", "Selecione um caminho de arquivo válido!")
             return
-            
-        if not os.path.isfile(path):
-            messagebox.showerror("Erro", "Arquivo não encontrado!")
-            return
-
+        # Prepara a UI
+        self.process_btn.config(state="disabled")
+        self.status_var.set("Iniciando processamento...")
+        self.json_text.delete(1.0, END)
+        self.chunk_count_label.config(text="")
+        self.progress_bar.pack()
+        self.progress_bar['value'] = 0
+        self.master.update_idletasks()
+        # Cria queue e thread
+        self.result_queue = Queue()
         doc_type = self.doc_type.get()
-        if not doc_type:
-            messagebox.showerror("Erro", "Selecione o tipo de documento!")
-            return
+        has_header = self.header_var.get() == 1 if doc_type == "Pergunta-Resposta/Entrevista" else False
+        threading.Thread(
+            target=self._background_process_file,
+            args=(path, doc_type, has_header),
+            daemon=True
+        ).start()
+        # Inicia verificação da queue
+        self.master.after(100, self._check_processing_queue)
 
-        self.status_var.set("Processando arquivo...")
-        self.master.update()
-
+    def _background_process_file(self, path, doc_type, has_header):
+        """Processamento em background"""
         try:
             if doc_type == "FAQ":
                 lines = self.processor.load_lines(path)
                 chunks = self.processor.chunk_faq(lines)
+                self.result_queue.put({"type": "result", "success": True, "data": chunks})
             elif doc_type == "Pergunta-Resposta/Entrevista":
                 lines = self.processor.load_lines(path)
                 blocks = self.processor.parse_interview_blocks(lines)
-                has_header = self.header_var.get() == 1
                 chunks = self.processor.chunk_interview(blocks, has_header)
+                self.result_queue.put({"type": "result", "success": True, "data": chunks})
             else:  # Texto Puro
                 chunks = self.processor.chunk_structured(path)
-
-            if not chunks:
-                messagebox.showwarning("Aviso", "Nenhum chunk válido foi gerado. Verifique o formato do arquivo.")
-                self.status_var.set("Nenhum resultado gerado")
-                return
-
-            # Serialização JSON com parâmetros especificados
-            self.json_data = json.dumps(
-                chunks,
-                ensure_ascii=False,
-                indent=2,
-                separators=(',', ': '),
-                sort_keys=False
-            )
-            
-            # Exibe resultado cru
-            self.json_text.delete(1.0, END)
-            self.json_text.insert(END, self.json_data)
-            
-            # Atualiza status
-            self.chunk_count_label.config(text=f"{len(chunks)} chunks gerados")
-            self.status_var.set(f"Processamento concluído - {len(chunks)} chunks")
-            
-            messagebox.showinfo("Sucesso", f"Arquivo processado com sucesso!\n{len(chunks)} chunks gerados.")
-
+                self.result_queue.put({"type": "result", "success": True, "data": chunks})
         except Exception as e:
-            error_msg = f"Erro durante o processamento:\n{str(e)}"
-            messagebox.showerror("Erro", error_msg)
-            self.status_var.set("Erro no processamento")
-            logging.error(f"Erro no processamento: {e}")
+            self.result_queue.put({"type": "result", "success": False, "error": str(e)})
+
+    def _check_processing_queue(self):
+        """Verifica atualizações na queue"""
+        try:
+            while not self.result_queue.empty():
+                msg = self.result_queue.get_nowait()
+                if msg['type'] == 'progress':
+                    self.progress_bar['value'] = msg['value']
+                    self.status_var.set(msg['step'])
+                    self.master.update_idletasks()
+                elif msg['type'] == 'result':
+                    self.progress_bar.pack_forget()
+                    self.process_btn.config(state="normal")
+                    if msg['success']:
+                        chunks = msg['data']
+                        self.json_data = json.dumps(chunks, ensure_ascii=False, indent=2)
+                        self.json_text.insert(END, self.json_data)
+                        self.chunk_count_label.config(text=f"{len(chunks)} chunks")
+                        messagebox.showinfo("Sucesso", f"Processamento concluído!\n{len(chunks)} chunks gerados.")
+                    else:
+                        messagebox.showerror("Erro", f"Falha no processamento:\n{msg['error']}")
+                    return
+            self.master.after(100, self._check_processing_queue)
+        except Exception as e:
+            logging.error(f"Erro na queue: {str(e)}")
+            self.progress_bar.pack_forget()
+            self.process_btn.config(state="normal")
 
     def save_json(self):
         """Salva o JSON processado"""
